@@ -128,6 +128,7 @@ const CameraCapture = ({ onCapture, isLoading }) => {
 
   return (
     <CameraContainer
+      data-testid="camera-capture"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ 

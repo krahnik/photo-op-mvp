@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
 const MonitoringService = require('../services/monitoringService');
 
 // Get current face preservation metrics
 router.get('/current-metrics', authenticateToken, async (req, res) => {
   try {
-    const metrics = await MonitoringService.getCurrentMetrics();
+    const metrics = await MonitoringService.getDashboardData();
     res.json(metrics);
   } catch (error) {
     console.error('Error fetching current metrics:', error);
@@ -18,7 +18,10 @@ router.get('/current-metrics', authenticateToken, async (req, res) => {
 router.get('/face-analytics', authenticateToken, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const analytics = await MonitoringService.getFaceAnalytics(startDate, endDate);
+    const analytics = await MonitoringService.getFacePreservationReport(
+      new Date(startDate),
+      new Date(endDate)
+    );
     res.json(analytics);
   } catch (error) {
     console.error('Error fetching face analytics:', error);
@@ -27,10 +30,13 @@ router.get('/face-analytics', authenticateToken, async (req, res) => {
 });
 
 // Get application performance metrics
-router.get('/app-metrics', authenticateToken, async (req, res) => {
+router.get('/app-metrics', authenticateAdmin, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
-    const metrics = await MonitoringService.getApplicationMetrics(startDate, endDate);
+    const metrics = await MonitoringService.getApplicationReport(
+      new Date(startDate),
+      new Date(endDate)
+    );
     res.json(metrics);
   } catch (error) {
     console.error('Error fetching application metrics:', error);
@@ -38,26 +44,30 @@ router.get('/app-metrics', authenticateToken, async (req, res) => {
   }
 });
 
-// Get detailed face preservation report
-router.get('/face-report', authenticateToken, async (req, res) => {
+// Get system health status
+router.get('/health', async (req, res) => {
   try {
-    const { startDate, endDate } = req.query;
-    const report = await MonitoringService.getFacePreservationReport(startDate, endDate);
-    res.json(report);
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
   } catch (error) {
-    console.error('Error fetching face preservation report:', error);
-    res.status(500).json({ error: 'Failed to fetch face preservation report' });
+    res.status(500).json({ error: error.message });
   }
 });
 
-// Get system health status
-router.get('/health', authenticateToken, async (req, res) => {
+// Get system metrics (admin only)
+router.get('/metrics', authenticateAdmin, async (req, res) => {
   try {
-    const health = await MonitoringService.getSystemHealth();
-    res.json(health);
+    const metrics = {
+      memory: process.memoryUsage(),
+      cpu: process.cpuUsage(),
+      timestamp: new Date().toISOString()
+    };
+    res.json(metrics);
   } catch (error) {
-    console.error('Error fetching system health:', error);
-    res.status(500).json({ error: 'Failed to fetch system health' });
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -18,12 +18,29 @@ const PromptContainer = styled(motion.div)`
 `;
 
 const StyleBlending = ({ 
-  enabled, 
-  onCustomPromptChange, 
+  enabled = false, 
+  onCustomPromptChange,
   onBlendingToggle,
   customPrompt = ''
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handlePromptChange = (e) => {
+    const value = e?.target?.value;
+    if (typeof value === 'string' && onCustomPromptChange) {
+      onCustomPromptChange(value.trim());
+    }
+  };
+
+  const handleBlendingToggle = (e) => {
+    const checked = e?.target?.checked;
+    if (typeof checked === 'boolean' && onBlendingToggle) {
+      onBlendingToggle(checked);
+    }
+  };
+
+  // Ensure customPrompt is a string
+  const safeCustomPrompt = typeof customPrompt === 'string' ? customPrompt : '';
 
   return (
     <Container
@@ -34,19 +51,23 @@ const StyleBlending = ({
       <FormControlLabel
         control={
           <Switch
-            checked={enabled}
-            onChange={(e) => onBlendingToggle(e.target.checked)}
+            checked={Boolean(enabled)}
+            onChange={handleBlendingToggle}
             color="primary"
           />
         }
         label={
-          <Typography variant="subtitle1">
+          <Typography 
+            variant="subtitle1"
+            component="span"
+            sx={{ display: 'block' }}
+          >
             Enable Style Blending
           </Typography>
         }
       />
       
-      {enabled && (
+      {Boolean(enabled) && (
         <PromptContainer
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
@@ -57,12 +78,17 @@ const StyleBlending = ({
             multiline
             rows={2}
             placeholder="Add custom style prompt (e.g. 'in a nightclub', 'underwater', 'on mars')"
-            value={customPrompt}
-            onChange={(e) => onCustomPromptChange(e.target.value)}
+            value={safeCustomPrompt}
+            onChange={handlePromptChange}
             variant="outlined"
             sx={{ mt: 2 }}
           />
-          <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+          <Typography 
+            variant="caption" 
+            color="textSecondary" 
+            component="span"
+            sx={{ display: 'block', mt: 1 }}
+          >
             Your custom prompt will be blended with the selected style while maintaining your likeness
           </Typography>
         </PromptContainer>

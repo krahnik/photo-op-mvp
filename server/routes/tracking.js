@@ -1,54 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const TrackingService = require('../services/trackingService');
+const trackingService = require('../services/trackingService');
 const { authenticateToken } = require('../middleware/auth');
 
 // Track a new operation
 router.post('/track', authenticateToken, async (req, res) => {
   try {
-    const success = await TrackingService.trackOperation({
-      ...req.body,
-      user_id: req.user.id // Add user ID from authentication
-    });
-
-    if (success) {
-      res.json({ success: true });
-    } else {
-      res.status(500).json({ success: false, error: 'Failed to track operation' });
-    }
+    const { eventType, details } = req.body;
+    const event = await trackingService.trackEvent(eventType, req.user.id, details);
+    res.json({ success: true, event });
   } catch (error) {
     console.error('Error in track endpoint:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // Update tracking status
 router.post('/track/status', authenticateToken, async (req, res) => {
   try {
-    const success = await TrackingService.trackOperation({
-      ...req.body,
-      user_id: req.user.id
+    const { eventType, details } = req.body;
+    const event = await trackingService.trackEvent(eventType, req.user.id, {
+      ...details,
+      status: 'updated'
     });
-
-    if (success) {
-      res.json({ success: true });
-    } else {
-      res.status(500).json({ success: false, error: 'Failed to update status' });
-    }
+    res.json({ success: true, event });
   } catch (error) {
     console.error('Error in track/status endpoint:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // Get tracking history for a request
 router.get('/track/:requestId', authenticateToken, async (req, res) => {
   try {
-    const history = await TrackingService.getTrackingHistory(req.params.requestId);
-    res.json({ success: true, history });
+    const events = await trackingService.getEvents({
+      userId: req.user.id,
+      requestId: req.params.requestId
+    });
+    res.json({ success: true, events });
   } catch (error) {
     console.error('Error in track/:requestId endpoint:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -56,15 +48,38 @@ router.get('/track/:requestId', authenticateToken, async (req, res) => {
 router.get('/track/stats', authenticateToken, async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ success: false, error: 'Unauthorized' });
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ success: false, error: 'Admin access required' });
     }
 
-    const stats = await TrackingService.getStatistics();
+    const events = await trackingService.getEvents({});
+    const stats = {
+      totalEvents: events.length,
+      eventsByType: events.reduce((acc, event) => {
+        acc[event.type] = (acc[event.type] || 0) + 1;
+        return acc;
+      }, {}),
+      eventsByUser: events.reduce((acc, event) => {
+        acc[event.userId] = (acc[event.userId] || 0) + 1;
+        return acc;
+      }, {})
+    };
     res.json({ success: true, stats });
   } catch (error) {
     console.error('Error in track/stats endpoint:', error);
-    res.status(500).json({ success: false, error: 'Internal server error' });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Track event (public endpoint)
+router.post('/event', async (req, res) => {
+  try {
+    const { eventType, userId, details } = req.body;
+    const event = await trackingService.trackEvent(eventType, userId, details);
+    res.json({ success: true, event });
+  } catch (error) {
+    console.error('Error in event endpoint:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

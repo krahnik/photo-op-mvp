@@ -128,9 +128,9 @@ const AnalyticsDashboard = ({ timeRange, sharedData, onUpdateSharedData }) => {
           />
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid item xs={12} md={6}>
           <ChartContainer>
-            <ChartTitle variant="h6">
+            <ChartTitle variant="h6" component="span">
               Transform Quality by Style
             </ChartTitle>
             <ResponsiveContainer width="100%" height={300}>
@@ -165,7 +165,7 @@ const AnalyticsDashboard = ({ timeRange, sharedData, onUpdateSharedData }) => {
 
         <Grid item xs={12} md={6}>
           <ChartContainer>
-            <ChartTitle variant="h6">
+            <ChartTitle variant="h6" component="span">
               Recent Leads Distribution
             </ChartTitle>
             <ResponsiveContainer width="100%" height={300}>

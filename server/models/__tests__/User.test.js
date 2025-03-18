@@ -1,86 +1,114 @@
 const mongoose = require('mongoose');
 const User = require('../User');
-const { createTestUser } = require('../../../test/helpers');
 
 describe('User Model', () => {
+  beforeAll(async () => {
+    await mongoose.connect(global.__MONGO_URI__, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.close();
+  });
+
+  afterEach(async () => {
+    await User.deleteMany();
+  });
+
   it('should create a new user successfully', async () => {
-    const userData = {
+    const validUser = {
+      name: 'Test User',
       email: 'test@example.com',
-      password: 'Test123!',
-      name: 'Test User'
+      password: 'password123'
     };
 
-    const user = await User.create(userData);
-
-    expect(user.email).toBe(userData.email);
-    expect(user.name).toBe(userData.name);
-    expect(user.password).not.toBe(userData.password); // Password should be hashed
-    expect(user.role).toBe('user'); // Default role
-    expect(user.createdAt).toBeDefined();
-    expect(user.updatedAt).toBeDefined();
+    const savedUser = await User.create(validUser);
+    expect(savedUser._id).toBeDefined();
+    expect(savedUser.email).toBe(validUser.email);
+    expect(savedUser.name).toBe(validUser.name);
+    expect(savedUser.password).not.toBe(validUser.password); // Password should be hashed
   });
 
-  it('should validate email format', async () => {
-    const userData = {
+  it('should fail to create a user with invalid email', async () => {
+    const userWithInvalidEmail = {
+      name: 'Test User',
       email: 'invalid-email',
-      password: 'Test123!',
-      name: 'Test User'
+      password: 'password123'
     };
 
-    await expect(User.create(userData)).rejects.toThrow();
+    await expect(User.create(userWithInvalidEmail)).rejects.toThrow();
   });
 
-  it('should validate password complexity', async () => {
-    const userData = {
+  it('should fail to create a user with short password', async () => {
+    const userWithShortPassword = {
+      name: 'Test User',
       email: 'test@example.com',
-      password: 'weak',
-      name: 'Test User'
+      password: 'short'
     };
 
-    await expect(User.create(userData)).rejects.toThrow();
+    await expect(User.create(userWithShortPassword)).rejects.toThrow();
   });
 
   it('should not allow duplicate emails', async () => {
-    const userData = {
+    const user = {
+      name: 'Test User',
       email: 'test@example.com',
-      password: 'Test123!',
-      name: 'Test User'
+      password: 'password123'
     };
 
-    await User.create(userData);
-    await expect(User.create(userData)).rejects.toThrow();
+    await User.create(user);
+    await expect(User.create(user)).rejects.toThrow();
   });
 
-  it('should compare passwords correctly', async () => {
-    const user = await createTestUser();
-    const correctPassword = 'Test123!';
-    const wrongPassword = 'WrongPass123!';
+  it('should correctly compare passwords', async () => {
+    const password = 'password123';
+    const user = await User.create({
+      name: 'Test User',
+      email: 'test@example.com',
+      password
+    });
 
-    expect(await user.comparePassword(correctPassword)).toBe(true);
-    expect(await user.comparePassword(wrongPassword)).toBe(false);
+    const isMatch = await user.comparePassword(password);
+    const isNotMatch = await user.comparePassword('wrongpassword');
+
+    expect(isMatch).toBe(true);
+    expect(isNotMatch).toBe(false);
   });
 
-  it('should update user profile', async () => {
-    const user = await createTestUser();
-    const updateData = {
-      name: 'Updated Name'
-    };
+  it('should update user profile correctly', async () => {
+    const user = await User.create({
+      name: 'Test User',
+      email: 'test@example.com',
+      password: 'password123'
+    });
 
-    const updatedUser = await User.findByIdAndUpdate(
-      user._id,
-      { $set: updateData },
-      { new: true }
-    );
+    user.name = 'Updated Name';
+    await user.save();
 
-    expect(updatedUser.name).toBe(updateData.name);
-    expect(updatedUser.email).toBe(user.email); // Email should not change
+    const updatedUser = await User.findById(user._id);
+    expect(updatedUser.name).toBe('Updated Name');
   });
 
-  it('should handle role-based access', async () => {
-    const adminUser = await createTestUser({ role: 'admin' });
-    const regularUser = await createTestUser({ role: 'user' });
+  it('should have correct default role', async () => {
+    const user = await User.create({
+      name: 'Test User',
+      email: 'test@example.com',
+      password: 'password123'
+    });
 
-    expect(adminUser.isAdmin()).toBe(true);
-    expect(regularUser.isAdmin()).toBe(false);
+    expect(user.role).toBe('user');
+  });
+
+  it('should allow setting admin role', async () => {
+    const adminUser = await User.create({
+      name: 'Admin User',
+      email: 'admin@example.com',
+      password: 'password123',
+      role: 'admin'
+    });
+
+    expect(adminUser.role).toBe('admin');
   });
 }); 

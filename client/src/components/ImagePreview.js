@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
+import { Typography } from '@mui/material';
 
 const PreviewContainer = styled.div`
   width: 100%;
@@ -60,6 +61,25 @@ const ImageInfo = styled.div`
   text-align: center;
 `;
 
+const RetryButton = styled.button`
+  margin-left: 10px;
+  padding: 5px 10px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  
+  &:hover {
+    background: #45a049;
+  }
+  
+  &:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+  }
+`;
+
 const ImagePreview = ({ 
   image, 
   isLoading, 
@@ -71,13 +91,20 @@ const ImagePreview = ({
   const [imageInfo, setImageInfo] = useState(null);
   const [validationError, setValidationError] = useState(null);
 
-  useEffect(() => {
-    if (image) {
-      validateImage(image);
-    }
-  }, [image]);
+  // Ensure image is a string or File
+  const safeImage = typeof image === 'string' || image instanceof File ? image : null;
+  
+  // Ensure error messages are strings
+  const safeError = typeof error === 'string' ? error : '';
+  const safeValidationError = typeof validationError === 'string' ? validationError : '';
 
-  const validateImage = (imageData) => {
+  useEffect(() => {
+    if (safeImage) {
+      validateImage(safeImage);
+    }
+  }, [safeImage, validateImage, maxSize, acceptedFormats]);
+
+  const validateImage = useCallback((imageData) => {
     setValidationError(null);
     
     // If image is a string (URL or base64)
@@ -122,45 +149,63 @@ const ImagePreview = ({
       };
       img.src = URL.createObjectURL(imageData);
     }
+  }, [maxSize, acceptedFormats]);
+
+  const handleRetry = () => {
+    if (onRetry && typeof onRetry === 'function') {
+      onRetry();
+    }
   };
 
   return (
     <PreviewContainer>
       <ImageWrapper>
-        {image && <PreviewImage src={image} alt="Preview" />}
-        {isLoading && (
+        {safeImage && <PreviewImage src={safeImage} alt="Preview" />}
+        {Boolean(isLoading) && (
           <LoadingOverlay>
-            <div>Loading image...</div>
+            <Typography 
+              variant="body1"
+              component="span"
+              sx={{ display: 'block' }}
+            >
+              Loading image...
+            </Typography>
           </LoadingOverlay>
         )}
       </ImageWrapper>
       
-      {(error || validationError) && (
+      {(safeError || safeValidationError) && (
         <ErrorMessage>
-          {error || validationError}
+          <Typography 
+            variant="body2"
+            component="span"
+            color="error"
+            sx={{ display: 'block' }}
+          >
+            {safeError || safeValidationError}
+          </Typography>
           {onRetry && (
-            <button 
-              onClick={onRetry}
-              style={{
-                marginLeft: '10px',
-                padding: '5px 10px',
-                background: '#4CAF50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
+            <RetryButton 
+              onClick={handleRetry}
+              disabled={Boolean(isLoading)}
+              aria-label="Retry loading image"
             >
               Retry
-            </button>
+            </RetryButton>
           )}
         </ErrorMessage>
       )}
 
       {imageInfo && (
         <ImageInfo>
-          {imageInfo.width} x {imageInfo.height} pixels
-          {imageInfo.size && ` • ${imageInfo.size}`}
+          <Typography 
+            variant="body2"
+            component="span"
+            color="textSecondary"
+            sx={{ display: 'block' }}
+          >
+            {String(`${imageInfo.width} x ${imageInfo.height} pixels${imageInfo.size ? ` • ${imageInfo.size}` : ''}`)}
+          </Typography>
         </ImageInfo>
       )}
     </PreviewContainer>

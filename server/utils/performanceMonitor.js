@@ -1,72 +1,77 @@
-const promClient = require('prom-client');
+const client = require('prom-client');
 const { logSecurityEvent, SecurityEventType, SecuritySeverity } = require('./securityLogger');
 
-// Create a Registry
-const register = new promClient.Registry();
-promClient.collectDefaultMetrics({ register });
+// Create a Registry to register metrics
+const register = new client.Registry();
 
-// Custom metrics
-const httpRequestDuration = new promClient.Histogram({
+// Add a default label which is added to all metrics
+register.setDefaultLabels({
+  app: 'photo-op'
+});
+
+// Enable the collection of default metrics
+client.collectDefaultMetrics({ register });
+
+// Create custom metrics
+const httpRequestDurationMicroseconds = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'status'],
+  labelNames: ['method', 'route', 'code'],
   buckets: [0.1, 0.5, 1, 2, 5]
 });
 
-const httpRequestTotal = new promClient.Counter({
+const httpRequestTotal = new client.Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
   labelNames: ['method', 'route', 'status']
 });
 
-const errorRate = new promClient.Counter({
+const errorRate = new client.Counter({
   name: 'error_total',
   help: 'Total number of errors',
   labelNames: ['type', 'route']
 });
 
-const activeUsers = new promClient.Gauge({
+const activeUsers = new client.Gauge({
   name: 'active_users',
   help: 'Number of active users'
 });
 
-const memoryUsage = new promClient.Gauge({
+const memoryUsage = new client.Gauge({
   name: 'memory_usage_bytes',
   help: 'Memory usage in bytes',
   labelNames: ['type']
 });
 
 // Register custom metrics
-register.registerMetric(httpRequestDuration);
+register.registerMetric(httpRequestDurationMicroseconds);
 register.registerMetric(httpRequestTotal);
 register.registerMetric(errorRate);
 register.registerMetric(activeUsers);
 register.registerMetric(memoryUsage);
 
-// Performance monitoring middleware
+// Middleware to monitor request duration
 const performanceMiddleware = (req, res, next) => {
-  const start = Date.now();
-  
-  // Track response
+  const start = process.hrtime();
+
   res.on('finish', () => {
-    const duration = (Date.now() - start) / 1000;
-    const route = req.route?.path || req.path;
-    
-    httpRequestDuration.observe(
-      { method: req.method, route, status: res.statusCode },
-      duration
-    );
-    
+    const duration = process.hrtime(start);
+    const durationInSeconds = duration[0] + duration[1] / 1e9;
+
+    httpRequestDurationMicroseconds
+      .labels(req.method, req.route?.path || req.path, res.statusCode)
+      .observe(durationInSeconds);
+
     httpRequestTotal.inc({
       method: req.method,
-      route,
+      route: req.route?.path || req.path,
       status: res.statusCode
     });
 
     if (res.statusCode >= 400) {
       errorRate.inc({
         type: res.statusCode >= 500 ? 'server' : 'client',
-        route
+        route: req.route?.path || req.path
       });
     }
   });
@@ -85,7 +90,7 @@ const updateMemoryMetrics = () => {
 // Update metrics every 15 seconds
 setInterval(updateMemoryMetrics, 15000);
 
-// Export metrics endpoint handler
+// Metrics endpoint handler
 const metricsHandler = async (req, res) => {
   try {
     res.set('Content-Type', register.contentType);

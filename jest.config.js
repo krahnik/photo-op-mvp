@@ -1,9 +1,33 @@
 module.exports = {
-  testEnvironment: 'node',
-  testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
-  collectCoverage: true,
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
+  projects: [
+    {
+      displayName: 'client',
+      testEnvironment: 'jsdom',
+      testMatch: ['<rootDir>/client/src/**/*.test.js'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+      transform: {
+        '^.+\\.(js|jsx)$': ['babel-jest', { configFile: './client/.babelrc' }]
+      },
+      moduleNameMapper: {
+        '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+        '\\.(jpg|jpeg|png|gif|webp|svg)$': '<rootDir>/__mocks__/fileMock.js'
+      }
+    },
+    {
+      displayName: 'server',
+      testEnvironment: 'node',
+      testMatch: ['<rootDir>/server/**/*.test.js'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
+    }
+  ],
+  verbose: true,
+  testTimeout: 30000,
+  collectCoverageFrom: [
+    'client/src/**/*.{js,jsx}',
+    'server/**/*.js',
+    '!client/src/index.js',
+    '!client/src/reportWebVitals.js'
+  ],
   coverageThreshold: {
     global: {
       branches: 80,
@@ -11,8 +35,5 @@ module.exports = {
       lines: 80,
       statements: 80
     }
-  },
-  setupFilesAfterEnv: ['./jest.setup.js'],
-  testTimeout: 30000,
-  verbose: true
+  }
 }; 

@@ -3,6 +3,10 @@ const { config } = require('../config');
 const MonitoringService = require('./monitoringService');
 
 class AIService {
+  constructor() {
+    this.baseUrl = process.env.AI_SERVICE_URL || 'http://localhost:5002';
+  }
+
   /**
    * Process image with advanced AI features
    * @param {Object} params - Processing parameters
@@ -13,7 +17,7 @@ class AIService {
    * @returns {Promise<Object>} Processed image and metrics
    * @throws {Error} If face detection fails or quality checks fail
    */
-  static async processImage(params) {
+  async processImage(params) {
     try {
       // Initialize face detection with enhanced features
       const faceDetection = await this.detectFaces(params.image);
@@ -59,9 +63,9 @@ class AIService {
    * Check for NSFW content
    * @param {Buffer} image - Image buffer
    */
-  static async checkNSFW(image) {
+  async checkNSFW(image) {
     try {
-      const response = await axios.post(`${config.AI_SERVICE_URL}/nsfw-check`, {
+      const response = await axios.post(`${this.baseUrl}/nsfw-check`, {
         image,
         model: 'efficientnet',
         threshold: 0.8
@@ -77,9 +81,9 @@ class AIService {
    * Assess image quality
    * @param {Buffer} image - Image buffer
    */
-  static async assessImageQuality(image) {
+  async assessImageQuality(image) {
     try {
-      const response = await axios.post(`${config.AI_SERVICE_URL}/quality-assessment`, {
+      const response = await axios.post(`${this.baseUrl}/quality-assessment`, {
         image,
         metrics: ['sharpness', 'noise', 'contrast', 'exposure']
       });
@@ -95,9 +99,9 @@ class AIService {
    * @param {Buffer} image - Image buffer
    * @param {string} style - Selected style
    */
-  static async checkStyleConsistency(image, style) {
+  async checkStyleConsistency(image, style) {
     try {
-      const response = await axios.post(`${config.AI_SERVICE_URL}/style-consistency`, {
+      const response = await axios.post(`${this.baseUrl}/style-consistency`, {
         image,
         style,
         model: 'efficientnet'
@@ -113,9 +117,9 @@ class AIService {
    * Add watermark to image
    * @param {string} imageBase64 - Base64 encoded image
    */
-  static async addWatermark(image, watermark) {
+  async addWatermark(image, watermark) {
     try {
-      const response = await axios.post(`${config.AI_SERVICE_URL}/watermark`, {
+      const response = await axios.post(`${this.baseUrl}/watermark`, {
         image,
         watermark,
         position: 'bottom-right',
@@ -134,9 +138,9 @@ class AIService {
    * @returns {Promise<Object>} Face detection results including landmarks and orientation
    * @throws {Error} If face detection fails or no faces are found
    */
-  static async detectFaces(image) {
+  async detectFaces(image) {
     try {
-      const response = await axios.post(`${config.AI_SERVICE_URL}/detect-faces`, {
+      const response = await axios.post(`${this.baseUrl}/detect-faces`, {
         image,
         model: 'mtcnn',
         params: {
@@ -167,13 +171,13 @@ class AIService {
    * @returns {Promise<Object>} Expression analysis results with 52 blendshape coefficients
    * @throws {Error} If expression analysis fails
    */
-  static async analyzeExpressions(faceDetection) {
+  async analyzeExpressions(faceDetection) {
     try {
       if (!faceDetection.faces || faceDetection.faces.length === 0) {
         throw new Error('No faces provided for expression analysis');
       }
 
-      const response = await axios.post(`${config.AI_SERVICE_URL}/analyze-expressions`, {
+      const response = await axios.post(`${this.baseUrl}/analyze-expressions`, {
         faces: faceDetection.faces,
         model: 'efficientnet',
         params: {
@@ -201,13 +205,13 @@ class AIService {
    * @returns {Promise<Object>} Demographic analysis results including age and gender
    * @throws {Error} If demographic analysis fails
    */
-  static async analyzeDemographics(faceDetection) {
+  async analyzeDemographics(faceDetection) {
     try {
       if (!faceDetection.faces || faceDetection.faces.length === 0) {
         throw new Error('No faces provided for demographic analysis');
       }
 
-      const response = await axios.post(`${config.AI_SERVICE_URL}/analyze-demographics`, {
+      const response = await axios.post(`${this.baseUrl}/analyze-demographics`, {
         faces: faceDetection.faces,
         model: 'efficientnet',
         params: {
@@ -237,13 +241,13 @@ class AIService {
    * @returns {Promise<Object>} Face descriptors for style transfer
    * @throws {Error} If descriptor generation fails
    */
-  static async generateFaceDescriptors(faceDetection) {
+  async generateFaceDescriptors(faceDetection) {
     try {
       if (!faceDetection.faces || faceDetection.faces.length === 0) {
         throw new Error('No faces provided for descriptor generation');
       }
 
-      const response = await axios.post(`${config.AI_SERVICE_URL}/generate-descriptors`, {
+      const response = await axios.post(`${this.baseUrl}/generate-descriptors`, {
         faces: faceDetection.faces,
         model: 'facenet',
         params: {
@@ -273,7 +277,7 @@ class AIService {
    * @returns {Promise<Object>} Style transfer results
    * @throws {Error} If style transfer fails
    */
-  static async applyStyleTransfer(params, faceDescriptors, analysis) {
+  async applyStyleTransfer(params, faceDescriptors, analysis) {
     try {
       if (!faceDescriptors.descriptors || faceDescriptors.descriptors.length === 0) {
         throw new Error('No face descriptors provided for style transfer');
@@ -285,7 +289,7 @@ class AIService {
         prompt = `${params.style}, ${params.customPrompt}`;
       }
 
-      const response = await axios.post(`${config.AI_SERVICE_URL}/style-transfer`, {
+      const response = await axios.post(`${this.baseUrl}/style-transfer`, {
         image: params.image,
         prompt: prompt,
         face_descriptors: faceDescriptors,
@@ -343,13 +347,13 @@ class AIService {
    * @returns {Promise<Object>} Validation results with detailed metrics
    * @throws {Error} If validation fails
    */
-  static async validateResults(result, faceDetection, analysis) {
+  async validateResults(result, faceDetection, analysis) {
     try {
       if (!result.transformed_image) {
         throw new Error('No transformed image provided for validation');
       }
 
-      const response = await axios.post(`${config.AI_SERVICE_URL}/validate`, {
+      const response = await axios.post(`${this.baseUrl}/validate`, {
         original_faces: faceDetection.faces,
         transformed_image: result.transformed_image,
         expression_analysis: analysis.expressionAnalysis,
@@ -377,6 +381,18 @@ class AIService {
       throw new Error(`Result validation failed: ${error.message}`);
     }
   }
+
+  async validateImage(imageBuffer) {
+    try {
+      const response = await axios.post(`${this.baseUrl}/validate`, {
+        image: imageBuffer.toString('base64')
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Image Validation Error:', error.message);
+      throw new Error('Failed to validate image');
+    }
+  }
 }
 
-module.exports = AIService; 
+module.exports = new AIService(); 

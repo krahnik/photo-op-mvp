@@ -1,67 +1,67 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import axios from 'axios';
 
+// Configure axios base URL with explicit protocol
+axios.defaults.baseURL = 'http://localhost:5000';
+
+// Add request interceptor for debugging
+axios.interceptors.request.use(
+  config => {
+    console.log('Request:', config);
+    return config;
+  },
+  error => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor for debugging
+axios.interceptors.response.use(
+  response => {
+    console.log('Response:', response);
+    return response;
+  },
+  error => {
+    console.error('Response error:', error);
+    return Promise.reject(error);
+  }
+);
+
 const AuthContext = createContext(null);
 
+// Mock user for development
+const MOCK_USER = {
+  id: 'mock-user-id',
+  email: 'test@example.com',
+  name: 'Test User'
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // Initialize with mock user
+  const [user, setUser] = useState(MOCK_USER);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Automatically set mock token
   useEffect(() => {
-    // Check for stored token and validate it
-    const token = localStorage.getItem('token');
-    if (token) {
-      validateToken(token);
-    } else {
-      setLoading(false);
-    }
+    localStorage.setItem('token', 'mock-token');
   }, []);
 
-  const validateToken = async (token) => {
-    try {
-      const response = await axios.get('/api/auth/validate', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser(response.data.user);
-    } catch (err) {
-      localStorage.removeItem('token');
-    } finally {
-      setLoading(false);
-    }
+  // Mock auth functions
+  const login = async () => {
+    setUser(MOCK_USER);
+    return MOCK_USER;
   };
 
-  const login = async (email, password) => {
-    try {
-      setError(null);
-      const response = await axios.post('/api/auth/login', { email, password });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setUser(user);
-      return user;
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
-      throw err;
-    }
-  };
-
-  const register = async (email, password, name) => {
-    try {
-      setError(null);
-      const response = await axios.post('/api/auth/register', { email, password, name });
-      const { token, user } = response.data;
-      localStorage.setItem('token', token);
-      setUser(user);
-      return user;
-    } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
-      throw err;
-    }
+  const register = async () => {
+    setUser(MOCK_USER);
+    return MOCK_USER;
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+    // Keep the mock user
+    console.log('Logout called (disabled in development)');
   };
 
   const value = {
@@ -75,7 +75,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

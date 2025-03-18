@@ -65,93 +65,57 @@ const Slider = styled.input`
   }
 `;
 
-const ImageAdjustments = ({ 
-  adjustments, 
-  onAdjustmentsChange 
-}) => {
+const ImageAdjustments = ({ adjustments = {}, onAdjustmentsChange }) => {
+  // Ensure adjustments object has all required properties with default values
+  const safeAdjustments = {
+    strength: Number(adjustments.strength ?? 0.6),
+    guidance_scale: Number(adjustments.guidance_scale ?? 7.5),
+    brightness: Number(adjustments.brightness ?? 1.0),
+    contrast: Number(adjustments.contrast ?? 1.0),
+    saturation: Number(adjustments.saturation ?? 1.0)
+  };
+
   const handleChange = (name, value) => {
-    onAdjustmentsChange({
-      ...adjustments,
-      [name]: parseFloat(value)
-    });
+    const numericValue = parseFloat(value);
+    if (!isNaN(numericValue)) {
+      onAdjustmentsChange({
+        ...safeAdjustments,
+        [name]: numericValue
+      });
+    }
+  };
+
+  const renderSlider = (name, label, min, max, step) => {
+    const value = safeAdjustments[name];
+    const displayValue = typeof value === 'number' ? 
+      (step >= 0.1 ? value.toFixed(1) : value.toFixed(2)) : 
+      '0.00';
+
+    return (
+      <SliderGroup key={name}>
+        <SliderLabel>
+          {label}
+          <SliderValue>{displayValue}</SliderValue>
+        </SliderLabel>
+        <Slider
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => handleChange(name, e.target.value)}
+        />
+      </SliderGroup>
+    );
   };
 
   return (
     <AdjustmentsContainer>
-      <SliderGroup>
-        <SliderLabel>
-          Transformation Strength
-          <SliderValue>{adjustments.strength.toFixed(2)}</SliderValue>
-        </SliderLabel>
-        <Slider
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={adjustments.strength}
-          onChange={(e) => handleChange('strength', e.target.value)}
-        />
-      </SliderGroup>
-
-      <SliderGroup>
-        <SliderLabel>
-          Guidance Scale
-          <SliderValue>{adjustments.guidance_scale.toFixed(1)}</SliderValue>
-        </SliderLabel>
-        <Slider
-          type="range"
-          min="1"
-          max="20"
-          step="0.5"
-          value={adjustments.guidance_scale}
-          onChange={(e) => handleChange('guidance_scale', e.target.value)}
-        />
-      </SliderGroup>
-
-      <SliderGroup>
-        <SliderLabel>
-          Brightness
-          <SliderValue>{adjustments.brightness.toFixed(2)}</SliderValue>
-        </SliderLabel>
-        <Slider
-          type="range"
-          min="0.5"
-          max="1.5"
-          step="0.05"
-          value={adjustments.brightness}
-          onChange={(e) => handleChange('brightness', e.target.value)}
-        />
-      </SliderGroup>
-
-      <SliderGroup>
-        <SliderLabel>
-          Contrast
-          <SliderValue>{adjustments.contrast.toFixed(2)}</SliderValue>
-        </SliderLabel>
-        <Slider
-          type="range"
-          min="0.5"
-          max="1.5"
-          step="0.05"
-          value={adjustments.contrast}
-          onChange={(e) => handleChange('contrast', e.target.value)}
-        />
-      </SliderGroup>
-
-      <SliderGroup>
-        <SliderLabel>
-          Saturation
-          <SliderValue>{adjustments.saturation.toFixed(2)}</SliderValue>
-        </SliderLabel>
-        <Slider
-          type="range"
-          min="0.5"
-          max="1.5"
-          step="0.05"
-          value={adjustments.saturation}
-          onChange={(e) => handleChange('saturation', e.target.value)}
-        />
-      </SliderGroup>
+      {renderSlider('strength', 'Transformation Strength', 0, 1, 0.05)}
+      {renderSlider('guidance_scale', 'Guidance Scale', 1, 20, 0.5)}
+      {renderSlider('brightness', 'Brightness', 0.5, 1.5, 0.05)}
+      {renderSlider('contrast', 'Contrast', 0.5, 1.5, 0.05)}
+      {renderSlider('saturation', 'Saturation', 0.5, 1.5, 0.05)}
     </AdjustmentsContainer>
   );
 };

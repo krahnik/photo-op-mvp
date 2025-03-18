@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import { Typography } from '@mui/material';
 
 const StylesContainer = styled.div`
   width: 100%;
@@ -34,7 +35,38 @@ const StyleButton = styled.button`
   }
 `;
 
-const styles = [
+const StylePreview = styled.div`
+  width: 100%;
+  height: 100px;
+  background: ${props => props.previewUrl ? '#f0f0f0' : '#fff'};
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+`;
+
+const StyleName = styled.div`
+  margin-top: 10px;
+  font-weight: bold;
+`;
+
+const StyleDescription = styled.div`
+  margin-top: 5px;
+  font-size: 0.8em;
+  color: #666;
+`;
+
+const StyleImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const StyleInfo = styled.div`
+  padding: 10px;
+`;
+
+// Define styles as a constant
+const TRANSFORMATION_STYLES = [
   {
     id: 'futuristic',
     name: 'Futuristic Portrait',
@@ -67,27 +99,62 @@ const styles = [
   }
 ];
 
-export { styles };
+const TransformationStyles = ({ selectedStyle = '', onStyleSelect, disabled = false }) => {
+  const handleStyleSelect = (style) => {
+    if (!style?.id || typeof style.id !== 'string') {
+      console.error('Invalid style object:', style);
+      return;
+    }
+    if (onStyleSelect && typeof onStyleSelect === 'function') {
+      onStyleSelect(style.id);
+    }
+  };
 
-const TransformationStyles = ({ 
-  selectedStyle, 
-  onStyleSelect,
-  disabled = false 
-}) => {
   return (
     <StylesContainer>
-      {styles.map((style) => (
-        <StyleButton
-          key={style.id}
-          selected={selectedStyle === style.id}
-          onClick={() => onStyleSelect(style)}
-          disabled={disabled}
-        >
-          {style.name}
-        </StyleButton>
-      ))}
+      {TRANSFORMATION_STYLES.map(style => {
+        // Ensure style object has required properties
+        const safeStyle = {
+          id: String(style?.id || ''),
+          name: String(style?.name || ''),
+          description: String(style?.description || ''),
+          image: typeof style?.image === 'string' ? style.image : ''
+        };
+
+        return (
+          <StyleButton
+            key={safeStyle.id}
+            type="button"
+            selected={selectedStyle === safeStyle.id}
+            onClick={() => handleStyleSelect(style)}
+            disabled={disabled}
+            aria-label={`Select ${safeStyle.name} style`}
+            aria-selected={selectedStyle === safeStyle.id}
+          >
+            {safeStyle.image && (
+              <StyleImage 
+                src={safeStyle.image} 
+                alt={safeStyle.name} 
+                loading="lazy"
+              />
+            )}
+            <StyleInfo>
+              <Typography variant="subtitle1" component="span">
+                {safeStyle.name}
+              </Typography>
+              {safeStyle.description && (
+                <Typography variant="body2" component="span" color="textSecondary">
+                  {safeStyle.description}
+                </Typography>
+              )}
+            </StyleInfo>
+          </StyleButton>
+        );
+      })}
     </StylesContainer>
   );
 };
 
+// Export both the component and the styles array
+export { TRANSFORMATION_STYLES };
 export default TransformationStyles; 

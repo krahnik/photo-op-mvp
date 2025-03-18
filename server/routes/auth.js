@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { z } = require('zod');
+const { authLimiter } = require('../middleware/security');
 const {
   validatePassword,
   hashPassword,
@@ -9,7 +10,8 @@ const {
   verifyToken,
   checkLockout,
   recordFailedAttempt,
-  resetFailedAttempts
+  resetFailedAttempts,
+  getFailedAttempts
 } = require('../utils/authUtils');
 
 // Validation schemas
@@ -23,6 +25,9 @@ const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string(),
 });
+
+// Apply rate limiting to all auth routes
+router.use(authLimiter);
 
 // Register route
 router.post('/register', async (req, res) => {
@@ -89,8 +94,12 @@ router.post('/login', async (req, res) => {
     const lockoutStatus = checkLockout(email);
     if (lockoutStatus.locked) {
       return res.status(429).json({
-        error: 'Account is temporarily locked',
-        remainingTime: lockoutStatus.remainingTime
+        status: 'error',
+        message: 'Account is temporarily locked for security.',
+        details: {
+          remainingTime: Math.ceil(lockoutStatus.remainingTime / 60),
+          unit: 'minutes'
+        }
       });
     }
 
@@ -98,18 +107,31 @@ router.post('/login', async (req, res) => {
     const user = await req.db.collection('users').findOne({ email });
     if (!user) {
       recordFailedAttempt(email);
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid email or password'
+      });
     }
 
     // Verify password
     const isMatch = await verifyPassword(password, user.password);
     if (!isMatch) {
       recordFailedAttempt(email);
-      return res.status(400).json({ error: 'Invalid credentials' });
+      const attempts = await getFailedAttempts(email);
+      const remainingAttempts = Math.max(0, 5 - attempts);
+      
+      return res.status(401).json({
+        status: 'error',
+        message: 'Invalid email or password',
+        details: {
+          remainingAttempts,
+          warning: remainingAttempts <= 2 ? `${remainingAttempts} attempts remaining before temporary lockout` : null
+        }
+      });
     }
 
     // Reset failed attempts on successful login
-    resetFailedAttempts(email);
+    await resetFailedAttempts(email);
 
     // Update user's last login
     await req.db.collection('users').updateOne(
@@ -128,18 +150,34 @@ router.post('/login', async (req, res) => {
     const token = generateToken(user._id, user.email);
 
     res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        name: user.name,
-      },
+      status: 'success',
+      data: {
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+        }
+      }
     });
   } catch (error) {
+    console.error('Login error:', error);
+    
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: error.errors });
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid input',
+        details: error.errors.map(err => ({
+          field: err.path.join('.'),
+          message: err.message
+        }))
+      });
     }
-    res.status(500).json({ error: 'Server error' });
+    
+    res.status(500).json({
+      status: 'error',
+      message: 'An unexpected error occurred. Please try again later.'
+    });
   }
 });
 

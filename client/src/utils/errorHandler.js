@@ -119,7 +119,7 @@ export const handleApiError = (error, options = {}) => {
     toast.error(
       <div>
         <strong>{title}</strong>
-        <p>{errorMessage || message}</p>
+        <span style={{ display: 'block' }}>{errorMessage || message}</span>
       </div>,
       { duration }
     );
@@ -143,7 +143,7 @@ export const handleImageError = (error, options = {}) => {
     toast.error(
       <div>
         <strong>Image Processing Error</strong>
-        <p>{errorMessage}</p>
+        <span style={{ display: 'block' }}>{errorMessage}</span>
         {onRetry && (
           <button
             onClick={onRetry}

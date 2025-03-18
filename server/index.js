@@ -6,8 +6,8 @@ const mongoose = require('mongoose');
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const Mailgun = require('mailgun.js');
 const formData = require('form-data');
+const Mailgun = require('mailgun.js');
 const axios = require('axios');
 const { config } = require('dotenv');
 const authRoutes = require('./routes/auth');
@@ -27,6 +27,7 @@ const {
 const { performanceMiddleware, metricsHandler } = require('./utils/performanceMonitor');
 const { logSecurityEvent, SecurityEventType, SecuritySeverity } = require('./utils/securityLogger');
 const { encryptFields, decryptFields } = require('./utils/encryption');
+const { authenticateAdmin } = require('./middleware/auth');
 
 // Load environment variables
 config();
@@ -41,7 +42,8 @@ const AIService = require('./services/aiService');
 const mailgun = new Mailgun(formData);
 const mailgunClient = mailgun.client({
   username: 'api',
-  key: process.env.MAILGUN_API_KEY
+  key: process.env.MAILGUN_API_KEY,
+  url: 'https://api.mailgun.net' // Adding explicit API URL
 });
 
 // Middleware
@@ -61,6 +63,20 @@ app.use(limiter);
 
 // Body parser
 app.use(express.json({ limit: '10kb' }));
+
+// MongoDB Connection
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('Connected to MongoDB'))
+.catch(err => console.error('MongoDB connection error:', err));
+
+// Database middleware
+app.use((req, res, next) => {
+  req.db = mongoose.connection.db;
+  next();
+});
 
 // Store uploads in a temp folder
 const upload = multer({ dest: 'uploads/' });

@@ -1,22 +1,35 @@
 const winston = require('winston');
 const { format } = winston;
+const fs = require('fs');
+const path = require('path');
 
 // Security event types
 const SecurityEventType = {
-  AUTH: 'AUTH',
-  RATE_LIMIT: 'RATE_LIMIT',
-  FILE_UPLOAD: 'FILE_UPLOAD',
-  POLICY_VIOLATION: 'POLICY_VIOLATION',
-  SYSTEM: 'SYSTEM'
+  AUTH_SUCCESS: 'auth_success',
+  AUTH_FAILURE: 'auth_failure',
+  RATE_LIMIT: 'rate_limit',
+  FILE_UPLOAD: 'file_upload',
+  INVALID_REQUEST: 'invalid_request',
+  SECURITY_VIOLATION: 'security_violation',
+  SYSTEM: 'system'  // Added SYSTEM type
 };
 
 // Security event severity levels
 const SecuritySeverity = {
-  INFO: 'INFO',
-  WARNING: 'WARNING',
-  ERROR: 'ERROR',
-  CRITICAL: 'CRITICAL'
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  CRITICAL: 'critical',
+  INFO: 'info',
+  WARNING: 'warning',
+  ERROR: 'error'
 };
+
+// Ensure logs directory exists
+const logsDir = path.join(__dirname, '../logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 // Create security logger
 const securityLogger = winston.createLogger({
@@ -29,13 +42,13 @@ const securityLogger = winston.createLogger({
   defaultMeta: { service: 'security-service' },
   transports: [
     new winston.transports.File({ 
-      filename: 'logs/security.log',
+      filename: path.join(logsDir, 'security.log'),
       level: 'info',
       maxsize: 5242880, // 5MB
       maxFiles: 5,
     }),
     new winston.transports.File({ 
-      filename: 'logs/security-error.log',
+      filename: path.join(logsDir, 'security-error.log'),
       level: 'error',
       maxsize: 5242880,
       maxFiles: 5,
@@ -54,31 +67,13 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Log security event
-const logSecurityEvent = (eventType, severity, message, metadata = {}) => {
-  const logData = {
-    eventType,
-    severity,
+const logSecurityEvent = (type, severity, message, details = {}) => {
+  securityLogger.log({
+    level: severity.toLowerCase(),
+    type,
     message,
-    ...metadata,
-    timestamp: new Date().toISOString(),
-    ip: metadata.ip || 'unknown',
-    userId: metadata.userId || 'anonymous'
-  };
-
-  switch (severity) {
-    case SecuritySeverity.INFO:
-      securityLogger.info(message, logData);
-      break;
-    case SecuritySeverity.WARNING:
-      securityLogger.warn(message, logData);
-      break;
-    case SecuritySeverity.ERROR:
-      securityLogger.error(message, logData);
-      break;
-    case SecuritySeverity.CRITICAL:
-      securityLogger.error(message, { ...logData, critical: true });
-      break;
-  }
+    ...details
+  });
 };
 
 // Middleware for logging security events

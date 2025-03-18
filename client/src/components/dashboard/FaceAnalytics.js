@@ -13,6 +13,7 @@ import {
   Bar
 } from 'recharts';
 import { format } from 'date-fns';
+import { Typography } from '@mui/material';
 
 const AnalyticsContainer = styled.div`
   background: white;
@@ -38,10 +39,9 @@ const ChartSection = styled.div`
   margin-bottom: 3rem;
 `;
 
-const SectionTitle = styled.h3`
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  font-size: 1.2rem;
+const SectionTitle = styled(Typography)`
+  margin-bottom: ${props => props.theme.spacing(2)};
+  color: ${props => props.theme.palette.text.primary};
 `;
 
 const ChartWrapper = styled.div`
@@ -142,7 +142,7 @@ const FaceAnalytics = () => {
       </StatsGrid>
 
       <ChartSection>
-        <SectionTitle>Preservation Score Trend</SectionTitle>
+        <SectionTitle variant="h6" component="span">Preservation Score Trend</SectionTitle>
         <ChartWrapper>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={analyticsData?.dailyScores}>
@@ -169,7 +169,7 @@ const FaceAnalytics = () => {
       </ChartSection>
 
       <ChartSection>
-        <SectionTitle>Face Detection Distribution</SectionTitle>
+        <SectionTitle variant="h6" component="span">Face Detection Distribution</SectionTitle>
         <ChartWrapper>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={analyticsData?.faceDistribution}>
@@ -189,7 +189,7 @@ const FaceAnalytics = () => {
       </ChartSection>
 
       <ChartSection>
-        <SectionTitle>Demographic Preservation Rates</SectionTitle>
+        <SectionTitle variant="h6" component="span">Demographic Preservation Rates</SectionTitle>
         <ChartWrapper>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={analyticsData?.demographicRates}>

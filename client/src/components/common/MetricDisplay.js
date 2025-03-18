@@ -100,12 +100,12 @@ const MetricDisplay = ({
         )}
       </MetricHeader>
 
-      <MetricTitle variant="subtitle2">{title}</MetricTitle>
-      <MetricValue variant="h3">{value}</MetricValue>
+      <MetricTitle variant="subtitle2" component="span">{title}</MetricTitle>
+      <MetricValue variant="h3" component="span">{value}</MetricValue>
 
       {trend !== undefined && (
         <MetricTrend trend={trend}>
-          <Typography variant="body2">
+          <Typography variant="body2" component="span">
             {trend > 0 ? '+' : ''}{trend}% {trendLabel || 'vs last period'}
           </Typography>
         </MetricTrend>

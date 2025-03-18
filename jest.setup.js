@@ -1,42 +1,53 @@
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+const { TextEncoder, TextDecoder } = require('util');
 
-let mongod;
+// Set up TextEncoder and TextDecoder globally
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
 
-// Connect to the in-memory database
-module.exports.connect = async () => {
-  mongod = await MongoMemoryServer.create();
-  const uri = mongod.getUri();
-  await mongoose.connect(uri);
-};
+// Only set up MongoDB for server tests
+if (process.env.JEST_WORKER_ID) {
+  const { MongoMemoryServer } = require('mongodb-memory-server');
+  const mongoose = require('mongoose');
 
-// Drop database, close the connection and stop mongod
-module.exports.closeDatabase = async () => {
-  await mongoose.connection.dropDatabase();
-  await mongoose.connection.close();
-  await mongod.stop();
-};
+  let mongoServer;
 
-// Clear all data in the database
-module.exports.clearDatabase = async () => {
-  const collections = mongoose.connection.collections;
-  for (const key in collections) {
-    const collection = collections[key];
-    await collection.deleteMany();
-  }
-};
+  beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    const mongoUri = mongoServer.getUri();
+    global.__MONGO_URI__ = mongoUri;
+    await mongoose.connect(mongoUri);
+  });
 
-// Setup before each test
-beforeAll(async () => {
-  await module.exports.connect();
-});
+  afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+  });
 
-// Cleanup after each test
-afterEach(async () => {
-  await module.exports.clearDatabase();
-});
+  beforeEach(async () => {
+    // Clear all collections before each test
+    const collections = await mongoose.connection.db.collections();
+    for (let collection of collections) {
+      await collection.deleteMany({});
+    }
+  });
+}
 
-// Cleanup after all tests
-afterAll(async () => {
-  await module.exports.closeDatabase();
-}); 
+// Only set up React testing utilities for client tests
+if (typeof window !== 'undefined') {
+  require('@testing-library/jest-dom');
+
+  // Mock window.matchMedia
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
+} 

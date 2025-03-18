@@ -13,7 +13,7 @@ import {
 
 const Container = styled(motion.div)`
   width: 100%;
-  max-width: ${props => props.theme.photoBoothStyles.container.maxWidth || '800px'};
+  max-width: ${props => props.theme?.photoBoothStyles?.container?.maxWidth || '800px'};
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -34,10 +34,10 @@ const ImagesContainer = styled(motion.div)`
 const ImageWrapper = styled(motion.div)`
   position: relative;
   aspect-ratio: 1;
-  border-radius: ${props => props.theme.photoBoothStyles.preview.borderRadius}px;
+  border-radius: ${props => props.theme?.photoBoothStyles?.preview?.borderRadius || 8}px;
   overflow: hidden;
-  background: ${props => props.theme.photoBoothStyles.preview.background};
-  box-shadow: ${props => props.theme.shadows.photo};
+  background: ${props => props.theme?.photoBoothStyles?.preview?.background || '#f5f5f5'};
+  box-shadow: ${props => props.theme?.shadows?.photo || '0 8px 16px rgba(0,0,0,0.15)'};
 `;
 
 const Image = styled(motion.img)`
@@ -61,21 +61,21 @@ const CompareButton = styled(IconButton)`
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: ${props => props.theme.palette.background.paper} !important;
-  box-shadow: ${props => props.theme.shadows.button};
+  background: ${props => props.theme?.palette?.background?.paper || '#ffffff'} !important;
+  box-shadow: ${props => props.theme?.shadows?.button || '0 2px 4px rgba(0,0,0,0.1)'};
   z-index: 2;
 
   &:hover {
-    background: ${props => props.theme.palette.background.paper};
-    box-shadow: ${props => props.theme.shadows.hover};
+    background: ${props => props.theme?.palette?.background?.paper || '#ffffff'};
+    box-shadow: ${props => props.theme?.shadows?.hover || '0 6px 12px rgba(0,0,0,0.15)'};
   }
 `;
 
 const AdjustmentsPanel = styled(motion.div)`
-  background: ${props => props.theme.palette.background.paper};
-  border-radius: ${props => props.theme.shape.cardBorderRadius}px;
+  background: ${props => props.theme?.palette?.background?.paper || '#ffffff'};
+  border-radius: ${props => props.theme?.shape?.cardBorderRadius || 4}px;
   padding: 24px;
-  box-shadow: ${props => props.theme.shadows.card};
+  box-shadow: ${props => props.theme?.shadows?.card || '0 2px 4px rgba(0,0,0,0.08)'};
 `;
 
 const AdjustmentHeader = styled.div`
@@ -121,12 +121,50 @@ const ImageDisplay = ({
   });
   const [showAdjustments, setShowAdjustments] = useState(true);
   const [isComparing, setIsComparing] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleAdjustmentChange = (key, value) => {
-    const newAdjustments = { ...adjustments, [key]: value };
-    setAdjustments(newAdjustments);
-    if (onAdjustmentsChange) {
-      onAdjustmentsChange(newAdjustments);
+  // Ensure all values are properly typed
+  const safeOriginalImage = typeof originalImage === 'string' ? originalImage : '';
+  const safeTransformedImage = typeof transformedImage === 'string' ? transformedImage : '';
+  const safeAdjustments = {
+    strength: Number(adjustments?.strength || 0.6),
+    guidance_scale: Number(adjustments?.guidance_scale || 7.5),
+    num_inference_steps: Number(adjustments?.num_inference_steps || 50)
+  };
+
+  const handleAdjustmentChange = (name, value) => {
+    try {
+      const numericValue = Number(value);
+      if (isNaN(numericValue)) {
+        throw new Error(`Invalid value for ${name}`);
+      }
+
+      const newAdjustments = {
+        ...safeAdjustments,
+        [name]: numericValue
+      };
+
+      setAdjustments(newAdjustments);
+      setError('');
+
+      if (onAdjustmentsChange && typeof onAdjustmentsChange === 'function') {
+        onAdjustmentsChange(newAdjustments);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error('Error updating adjustment:', err);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (onConfirm && typeof onConfirm === 'function') {
+      onConfirm();
+    }
+  };
+
+  const handleRetry = () => {
+    if (onRetry && typeof onRetry === 'function') {
+      onRetry();
     }
   };
 
@@ -136,35 +174,49 @@ const ImageDisplay = ({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
+      {error && (
+        <Typography 
+          component="div" 
+          color="error" 
+          sx={{ mb: 2 }}
+        >
+          {error}
+        </Typography>
+      )}
+
       <ImagesContainer>
         <ImageWrapper>
           <Image 
-            src={originalImage} 
+            src={safeOriginalImage} 
             alt="Original"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3 }}
           />
-          <ImageLabel variant="subtitle1">Original</ImageLabel>
+          <ImageLabel variant="subtitle1" component="span">
+            Original
+          </ImageLabel>
         </ImageWrapper>
 
         <ImageWrapper>
           <Image 
-            src={transformedImage || originalImage} 
+            src={safeTransformedImage || safeOriginalImage} 
             alt="Transformed"
             initial={{ opacity: 0 }}
             animate={{ opacity: isComparing ? 0 : 1 }}
             transition={{ duration: 0.3 }}
           />
           <Image 
-            src={originalImage} 
+            src={safeOriginalImage} 
             alt="Original for comparison"
             initial={{ opacity: 0 }}
             animate={{ opacity: isComparing ? 1 : 0 }}
             transition={{ duration: 0.3 }}
             style={{ position: 'absolute', top: 0, left: 0 }}
           />
-          <ImageLabel variant="subtitle1">Transformed</ImageLabel>
+          <ImageLabel variant="subtitle1" component="span">
+            Transformed
+          </ImageLabel>
         </ImageWrapper>
 
         <CompareButton
@@ -172,6 +224,7 @@ const ImageDisplay = ({
           onMouseUp={() => setIsComparing(false)}
           onMouseLeave={() => setIsComparing(false)}
           size="large"
+          aria-label="Compare images"
         >
           <Compare />
         </CompareButton>
@@ -181,7 +234,12 @@ const ImageDisplay = ({
         <AdjustmentHeader onClick={() => setShowAdjustments(!showAdjustments)}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Tune />
-            <Typography variant="h6">Adjustments</Typography>
+            <Typography 
+              variant="h6" 
+              component="span"
+            >
+              Adjust Your Image
+            </Typography>
           </div>
           {showAdjustments ? <ExpandLess /> : <ExpandMore />}
         </AdjustmentHeader>
@@ -196,52 +254,82 @@ const ImageDisplay = ({
             >
               <div>
                 <SliderLabel>
-                  <Typography variant="body2">Transformation Strength</Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {adjustments.strength.toFixed(2)}
+                  <Typography 
+                    variant="body1"
+                    component="span"
+                  >
+                    Transformation Strength
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    color="textSecondary"
+                    component="span"
+                  >
+                    {safeAdjustments.strength.toFixed(2)}
                   </Typography>
                 </SliderLabel>
                 <Slider
-                  value={adjustments.strength}
+                  value={safeAdjustments.strength}
                   onChange={(_, value) => handleAdjustmentChange('strength', value)}
                   min={0.5}
                   max={0.7}
                   step={0.02}
                   disabled={isLoading}
+                  aria-label="Transformation strength"
                 />
               </div>
 
               <div>
                 <SliderLabel>
-                  <Typography variant="body2">Guidance Scale</Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {adjustments.guidance_scale.toFixed(1)}
+                  <Typography 
+                    variant="body1"
+                    component="span"
+                  >
+                    Guidance Scale
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    color="textSecondary"
+                    component="span"
+                  >
+                    {safeAdjustments.guidance_scale.toFixed(1)}
                   </Typography>
                 </SliderLabel>
                 <Slider
-                  value={adjustments.guidance_scale}
+                  value={safeAdjustments.guidance_scale}
                   onChange={(_, value) => handleAdjustmentChange('guidance_scale', value)}
                   min={5}
                   max={12}
                   step={0.5}
                   disabled={isLoading}
+                  aria-label="Guidance scale"
                 />
               </div>
 
               <div>
                 <SliderLabel>
-                  <Typography variant="body2">Quality Steps</Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {adjustments.num_inference_steps}
+                  <Typography 
+                    variant="body1"
+                    component="span"
+                  >
+                    Quality Steps
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    color="textSecondary"
+                    component="span"
+                  >
+                    {Math.round(safeAdjustments.num_inference_steps)}
                   </Typography>
                 </SliderLabel>
                 <Slider
-                  value={adjustments.num_inference_steps}
+                  value={safeAdjustments.num_inference_steps}
                   onChange={(_, value) => handleAdjustmentChange('num_inference_steps', value)}
                   min={20}
                   max={100}
                   step={1}
                   disabled={isLoading}
+                  aria-label="Quality steps"
                 />
               </div>
             </SliderGroup>
@@ -252,19 +340,18 @@ const ImageDisplay = ({
           <Button
             variant="outlined"
             startIcon={<Refresh />}
-            onClick={onRetry}
+            onClick={handleRetry}
             disabled={isLoading}
           >
             Try Again
           </Button>
           <Button
             variant="contained"
-            color="primary"
             startIcon={<Send />}
-            onClick={onConfirm}
-            disabled={isLoading || !transformedImage}
+            onClick={handleConfirm}
+            disabled={isLoading}
           >
-            Continue to Email
+            Continue
           </Button>
         </ButtonGroup>
       </AdjustmentsPanel>

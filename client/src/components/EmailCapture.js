@@ -6,7 +6,8 @@ import {
   TextField, 
   Button, 
   IconButton,
-  Paper
+  Paper,
+  CircularProgress
 } from '@mui/material';
 import { 
   ArrowBack, 
@@ -16,7 +17,7 @@ import {
 
 const Container = styled(motion.div)`
   width: 100%;
-  max-width: ${props => props.theme.photoBoothStyles.container.maxWidth || '800px'};
+  max-width: ${props => props.theme?.photoBoothStyles?.container?.maxWidth || '800px'};
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -25,18 +26,18 @@ const Container = styled(motion.div)`
 
 const FormContainer = styled(Paper)`
   padding: 24px;
-  border-radius: ${props => props.theme.shape.cardBorderRadius}px;
-  box-shadow: ${props => props.theme.shadows.card};
-  background: ${props => props.theme.palette.background.paper};
+  border-radius: ${props => props.theme?.shape?.cardBorderRadius || 8}px;
+  box-shadow: ${props => props.theme?.shadows?.card || '0 2px 4px rgba(0,0,0,0.08)'};
+  background: ${props => props.theme?.palette?.background?.paper || '#ffffff'};
 `;
 
 const PreviewContainer = styled(motion.div)`
   position: relative;
   aspect-ratio: 1;
-  border-radius: ${props => props.theme.photoBoothStyles.preview.borderRadius}px;
+  border-radius: ${props => props.theme?.photoBoothStyles?.preview?.borderRadius || 8}px;
   overflow: hidden;
-  background: ${props => props.theme.photoBoothStyles.preview.background};
-  box-shadow: ${props => props.theme.shadows.photo};
+  background: ${props => props.theme?.photoBoothStyles?.preview?.background || '#f5f5f5'};
+  box-shadow: ${props => props.theme?.shadows?.photo || '0 8px 16px rgba(0,0,0,0.15)'};
 `;
 
 const PreviewImage = styled(motion.img)`
@@ -48,12 +49,6 @@ const PreviewImage = styled(motion.img)`
 const Form = styled.form`
   display: flex;
   flex-direction: column;
-  gap: 24px;
-`;
-
-const InputGroup = styled.div`
-  display: flex;
-  flex-direction: column;
   gap: 16px;
 `;
 
@@ -61,106 +56,195 @@ const ButtonGroup = styled.div`
   display: flex;
   gap: 12px;
   justify-content: flex-end;
-  margin-top: 12px;
+  margin-top: 16px;
 `;
 
 const EmailIcon = styled(Email)`
   font-size: 48px;
-  color: ${props => props.theme.palette.primary.main};
+  color: ${props => props.theme?.palette?.primary?.main || '#1976d2'};
   margin-bottom: 16px;
 `;
 
-const EmailCapture = ({ transformedImage, onSubmit, onBack }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-  });
+const Link = styled.a`
+  color: ${props => props.theme?.palette?.primary?.main || '#1976d2'};
+  text-decoration: none;
+  cursor: pointer;
 
-  const handleSubmit = (e) => {
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const EmailCapture = ({
+  transformedImage,
+  onSubmit,
+  onRetry,
+  isLoading = false
+}) => {
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [submitError, setSubmitError] = useState('');
+
+  // Ensure transformedImage is a string
+  const safeTransformedImage = typeof transformedImage === 'string' ? transformedImage : '';
+
+  const validateEmail = (email) => {
+    if (!email || typeof email !== 'string') return false;
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email.toLowerCase());
+  };
+
+  const validateName = (name) => {
+    return typeof name === 'string' && name.trim().length > 0;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    try {
+      let hasError = false;
+      setSubmitError('');
+      
+      // Validate name
+      const safeName = String(name || '').trim();
+      if (!validateName(safeName)) {
+        setNameError('Please enter your name');
+        hasError = true;
+      } else {
+        setNameError('');
+      }
+
+      // Validate email
+      const safeEmail = String(email || '').trim();
+      if (!safeEmail) {
+        setEmailError('Please enter your email');
+        hasError = true;
+      } else if (!validateEmail(safeEmail)) {
+        setEmailError('Please enter a valid email address');
+        hasError = true;
+      } else {
+        setEmailError('');
+      }
+
+      if (!hasError && onSubmit && typeof onSubmit === 'function') {
+        await onSubmit({ 
+          email: safeEmail, 
+          name: safeName 
+        });
+      }
+    } catch (err) {
+      setSubmitError(err.message || 'Failed to submit. Please try again.');
+      console.error('Error submitting form:', err);
+    }
+  };
+
+  const handleRetry = () => {
+    if (onRetry && typeof onRetry === 'function') {
+      onRetry();
+    }
   };
 
   return (
     <Container
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      transition={{ duration: 0.5 }}
     >
-      <PreviewContainer>
-        <PreviewImage 
-          src={transformedImage} 
-          alt="Your transformed photo"
-          initial={{ opacity: 0, scale: 1.1 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3, ease: "easeOut" }}
-        />
-      </PreviewContainer>
+      {safeTransformedImage && (
+        <PreviewContainer>
+          <PreviewImage 
+            src={safeTransformedImage} 
+            alt="Your transformed photo"
+            initial={{ opacity: 0, scale: 1.1 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          />
+        </PreviewContainer>
+      )}
 
       <FormContainer elevation={0}>
-        <Form onSubmit={handleSubmit}>
-          <div style={{ textAlign: 'center' }}>
-            <EmailIcon />
-            <Typography variant="h5" gutterBottom>
-              Get Your Transformed Photo
-            </Typography>
-            <Typography variant="body2" color="textSecondary" paragraph>
-              Enter your details below and we'll send your transformed photo directly to your inbox.
-            </Typography>
-          </div>
+        <Typography 
+          variant="h5" 
+          component="h2"
+          gutterBottom
+        >
+          Almost there!
+        </Typography>
+        
+        <Typography 
+          variant="body1"
+          component="p"
+          sx={{ mb: 3 }}
+        >
+          Enter your details to receive your transformed photo.
+        </Typography>
 
-          <InputGroup>
-            <TextField
-              fullWidth
-              label="Your Name"
-              variant="outlined"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              InputProps={{
-                sx: {
-                  borderRadius: theme => theme.shape.buttonBorderRadius,
-                }
-              }}
-            />
-            
-            <TextField
-              fullWidth
-              label="Your Email"
-              type="email"
-              variant="outlined"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              required
-              InputProps={{
-                sx: {
-                  borderRadius: theme => theme.shape.buttonBorderRadius,
-                }
-              }}
-            />
-          </InputGroup>
+        {submitError && (
+          <Typography 
+            color="error" 
+            component="div"
+            sx={{ mb: 2 }}
+          >
+            {submitError}
+          </Typography>
+        )}
 
+        <Form onSubmit={handleSubmit} noValidate>
+          <TextField
+            fullWidth
+            label="Name"
+            value={name}
+            onChange={(e) => setName(String(e.target.value))}
+            error={Boolean(nameError)}
+            helperText={nameError || ' '}
+            disabled={Boolean(isLoading)}
+            variant="outlined"
+            inputProps={{
+              maxLength: 100,
+              'aria-label': 'Name'
+            }}
+          />
+          <TextField
+            fullWidth
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(String(e.target.value))}
+            error={Boolean(emailError)}
+            helperText={emailError || ' '}
+            disabled={Boolean(isLoading)}
+            variant="outlined"
+            inputProps={{
+              maxLength: 254,
+              'aria-label': 'Email address'
+            }}
+          />
+          <Typography 
+            variant="caption"
+            component="p"
+            color="textSecondary"
+            sx={{ mt: 1 }}
+          >
+            We'll never share your email with anyone else.
+          </Typography>
           <ButtonGroup>
             <Button
               variant="outlined"
-              startIcon={<ArrowBack />}
-              onClick={onBack}
-              sx={{
-                borderRadius: theme => theme.shape.buttonBorderRadius,
-              }}
+              onClick={handleRetry}
+              disabled={Boolean(isLoading)}
+              type="button"
             >
-              Back
+              Try Again
             </Button>
             <Button
               type="submit"
               variant="contained"
-              color="primary"
-              startIcon={<Send />}
-              sx={{
-                borderRadius: theme => theme.shape.buttonBorderRadius,
-              }}
+              disabled={Boolean(isLoading)}
+              endIcon={isLoading ? <CircularProgress size={20} /> : <Send />}
             >
-              Send to Email
+              Send Photo
             </Button>
           </ButtonGroup>
         </Form>

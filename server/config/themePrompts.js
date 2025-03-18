@@ -1,9 +1,10 @@
 // server/config/themePrompts.js
 
-const themePrompts = {
-  futuristic: "A hyper-realistic portrait of the person in futuristic cyberpunk attire with neon lights and a sci-fi background",
-  "retro 80s": "A photo-realistic portrait of the person in vibrant retro 80s clothing with neon colors and a vintage background",
-  baseball: "A photo-realistic portrait of the person transformed into a professional baseball player with a stadium and sports gear"
+module.exports = {
+  vintage: "A vintage photograph with warm tones, film grain, and slightly faded colors",
+  modern: "A contemporary, high-contrast photograph with vibrant colors and sharp details",
+  artistic: "An artistic interpretation with painterly effects and enhanced colors",
+  minimalist: "A clean, minimalist composition with subtle tones and simplified elements",
+  vibrant: "A highly saturated image with bold colors and enhanced contrast",
+  custom: "" // Custom prompt will be provided by the user
 };
-
-module.exports = themePrompts;

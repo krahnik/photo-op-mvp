@@ -1,72 +1,120 @@
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const xss = require('xss-clean');
 const hpp = require('hpp');
 const mongoSanitize = require('express-mongo-sanitize');
+const xssClean = require('xss-clean');
 
-// Rate limiting configuration
+// Store failed attempts with timestamps and cleanup old entries periodically
+const failedAttempts = new Map();
+
+// Cleanup old entries every 15 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of failedAttempts.entries()) {
+    if (now - value.timestamp > 15 * 60 * 1000) {
+      failedAttempts.delete(key);
+    }
+  }
+}, 15 * 60 * 1000);
+
+// Basic rate limiter with sliding window
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  max: 1000, // Allow more requests per window
+  message: {
+    status: 'error',
+    message: 'Too many requests. Please try again in a few minutes.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true // Don't count successful requests
 });
 
-// Specific rate limiters for sensitive endpoints
+// Auth rate limit with gradual backoff
 const authLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5, // Limit each IP to 5 failed login attempts per hour
-  message: 'Too many login attempts, please try again later.',
+  windowMs: 60 * 60 * 1000, // 1 hour window
+  max: (req) => {
+    const ip = req.ip;
+    const attempts = failedAttempts.get(ip);
+    if (!attempts) return 100; // Initial limit
+    
+    // Calculate time since last attempt
+    const timeSinceLastAttempt = Date.now() - attempts.timestamp;
+    
+    // Reset attempts if enough time has passed
+    if (timeSinceLastAttempt > 30 * 60 * 1000) { // 30 minutes
+      failedAttempts.delete(ip);
+      return 100;
+    }
+    
+    // Gradual reduction based on failed attempts
+    return Math.max(20, 100 - (attempts.count * 10)); // Minimum 20 attempts per hour
+  },
+  message: (req) => {
+    const ip = req.ip;
+    const attempts = failedAttempts.get(ip);
+    const waitTime = attempts ? Math.min(Math.pow(1.5, attempts.count) * 60, 900) : 60; // Cap at 15 minutes
+    
+    return {
+      status: 'error',
+      message: 'Too many login attempts. Please try again later.',
+      retryAfter: `${Math.ceil(waitTime / 60)} minutes`
+    };
+  },
+  skipSuccessfulRequests: true,
+  handler: (req, res) => {
+    const ip = req.ip;
+    const current = failedAttempts.get(ip) || { count: 0, timestamp: Date.now() };
+    
+    failedAttempts.set(ip, {
+      count: current.count + 1,
+      timestamp: Date.now()
+    });
+    
+    const waitTime = Math.min(Math.pow(1.5, current.count + 1) * 60, 900);
+    
+    res.status(429).json({
+      status: 'error',
+      message: 'Too many login attempts. Please try again later.',
+      retryAfter: `${Math.ceil(waitTime / 60)} minutes`
+    });
+  }
 });
 
+// Upload limiter with higher limits
 const uploadLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // Limit each IP to 10 uploads per hour
-  message: 'Upload limit reached, please try again later.',
-});
-
-// Security headers configuration
-const securityHeaders = helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "blob:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
-      sandbox: ['allow-forms', 'allow-scripts', 'allow-same-origin'],
-    },
+  max: 100,
+  message: {
+    status: 'error',
+    message: 'Upload limit reached. Please try again later.',
+    retryAfter: '1 hour'
   },
-  crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  dnsPrefetchControl: true,
-  frameguard: { action: 'deny' },
-  hidePoweredBy: true,
-  hsts: true,
-  ieNoOpen: true,
-  noSniff: true,
-  originAgentCluster: true,
-  permittedCrossDomainPolicies: { permittedPolicies: 'none' },
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  xssFilter: true,
+  standardHeaders: true,
+  legacyHeaders: false
 });
 
-// File upload security
+// Security headers middleware
+const securityHeaders = helmet();
+
+// XSS prevention middleware
+const xss = () => xssClean();
+
+// File upload security middleware
 const fileUploadSecurity = (req, res, next) => {
-  // Check file size (max 5MB)
-  if (req.file && req.file.size > 5 * 1024 * 1024) {
-    return res.status(400).json({ error: 'File size exceeds 5MB limit' });
+  if (!req.file) return next();
+
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+  if (!allowedTypes.includes(req.file.mimetype)) {
+    return res.status(400).json({ error: 'Invalid file type' });
   }
 
-  // Check file type
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-  if (req.file && !allowedTypes.includes(req.file.mimetype)) {
-    return res.status(400).json({ error: 'Invalid file type. Only JPG, PNG, and GIF are allowed' });
+  // Validate file size (max 5MB)
+  const maxSize = 5 * 1024 * 1024;
+  if (req.file.size > maxSize) {
+    return res.status(400).json({ error: 'File too large' });
   }
 
   next();
@@ -80,5 +128,5 @@ module.exports = {
   xss,
   hpp,
   mongoSanitize,
-  fileUploadSecurity,
+  fileUploadSecurity
 }; 

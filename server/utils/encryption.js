@@ -2,9 +2,9 @@ const { MongoClient, ClientEncryption } = require('mongodb');
 const crypto = require('crypto');
 
 // Encryption configuration
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32);
-const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
-const ENCRYPTION_IV_LENGTH = 16;
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-encryption-key-min-32-chars-long!!';
+const IV_LENGTH = 16;
+const ALGORITHM = 'aes-256-cbc';
 
 // Sensitive fields configuration
 const SENSITIVE_FIELDS = {
@@ -17,35 +17,29 @@ const SENSITIVE_FIELDS = {
 const encryptField = (value) => {
   if (!value) return value;
   
-  const iv = crypto.randomBytes(ENCRYPTION_IV_LENGTH);
-  const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
   
-  let encrypted = cipher.update(value, 'utf8', 'hex');
-  encrypted += cipher.final('hex');
+  let encrypted = cipher.update(value);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
   
-  const authTag = cipher.getAuthTag();
-  
-  return {
-    encrypted: encrypted,
-    iv: iv.toString('hex'),
-    authTag: authTag.toString('hex')
-  };
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
 };
 
 // Decrypt a field value
 const decryptField = (encryptedData) => {
-  if (!encryptedData || !encryptedData.encrypted) return encryptedData;
+  if (!encryptedData) return encryptedData;
   
-  const iv = Buffer.from(encryptedData.iv, 'hex');
-  const authTag = Buffer.from(encryptedData.authTag, 'hex');
+  const textParts = encryptedData.split(':');
+  const iv = Buffer.from(textParts.shift(), 'hex');
+  const encryptedText = Buffer.from(textParts.join(':'), 'hex');
   
-  const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
-  decipher.setAuthTag(authTag);
+  const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
   
-  let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
+  let decrypted = decipher.update(encryptedText);
+  decrypted = Buffer.concat([decrypted, decipher.final()]);
   
-  return decrypted;
+  return decrypted.toString();
 };
 
 // Process document for encryption/decryption
@@ -95,5 +89,7 @@ module.exports = {
   encryptField,
   decryptField,
   processDocument,
-  encryptionMiddleware
+  encryptionMiddleware,
+  encryptFields: encryptField,
+  decryptFields: decryptField
 }; 
