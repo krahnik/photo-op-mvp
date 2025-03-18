@@ -1,0 +1,188 @@
+Create a photo transformation application with the following specifications:
+
+1. System Architecture:
+   - Microservices-based architecture with Docker containerization
+   - Frontend: React.js with modern UI/UX
+   - Backend: Node.js API server
+   - AI Service: Python/Flask with Stable Diffusion
+   - Database: MongoDB for data persistence
+
+2. Core Features:
+   a) Photo Upload & Processing:
+      - Drag-and-drop or file selection interface
+      - Support for common image formats (JPG, PNG)
+      - Image validation and preprocessing
+      - Progress tracking during upload
+
+   b) AI Transformation:
+      - Integration with Stable Diffusion model
+      - Multiple artistic style presets
+      - Customizable transformation parameters
+      - GPU acceleration support
+      - Error handling and retry mechanisms
+
+   c) User Experience:
+      - Real-time preview of transformations
+      - Before/after comparison view
+      - Download options for transformed images
+      - Email delivery system
+      - Mobile-responsive design
+
+   d) Lead Generation:
+      - Email collection form
+      - User information storage
+      - Event tracking
+      - Analytics dashboard
+
+3. Technical Requirements:
+   - RESTful API design
+   - Secure file handling
+   - Rate limiting
+   - Error logging and monitoring
+   - Health check endpoints
+   - CORS configuration
+   - Environment variable management
+
+4. Security Considerations:
+   - Input validation
+   - File type verification
+   - Size limits
+   - Secure storage
+   - API authentication
+   - Rate limiting
+
+5. Performance Optimization:
+   - Image compression
+   - Caching strategies
+   - Load balancing
+   - Resource monitoring
+   - Queue management for heavy processing
+
+6. Monitoring and Maintenance:
+   - Health check endpoints
+   - Logging system
+   - Error tracking
+   - Performance metrics
+   - Backup systems
+
+7. Development Guidelines:
+   - Clean code architecture
+   - Comprehensive documentation
+   - Unit and integration tests
+   - CI/CD pipeline
+   - Version control best practices
+
+8. Deployment Requirements:
+   - Docker containerization
+   - Environment configuration
+   - Service orchestration
+   - Load balancing
+   - Monitoring setup
+
+1. AI Model Development Guidelines
+
+A. Model Selection and Optimization
+Model Architecture
+Use Stable Diffusion XL (SDXL) for improved quality and performance
+Implement ControlNet for better style control (Maintain user likeness in transformed image)
+Consider using LCM (Latent Consistency Models) for faster inference
+Implement model quantization for reduced memory usage
+
+2. Performance Optimization
+   # Example optimization techniques
+   - Use torch.compile() for PyTorch 2.0+ optimizations
+   - Implement attention slicing for memory efficiency
+   - Use sequential CPU offload for large models
+   - Implement model caching for frequently used styles
+
+3. Quality Control
+    Implement NSFW detection
+    Add image quality assessment
+    Implement style consistency checks
+    Add watermarking for generated images
+
+B. UI/UX Guidelines
+Component Library
+Use Shadcn UI for consistent design
+Implement dark/light mode
+Add loading skeletons
+Implement proper error states
+
+Validation
+Implement Zod for request validation
+Add rate limiting
+Implement request sanitization
+Add proper logging
+B. Database Guidelines
+
+Indexing Strategy
+Implement compound indexes
+Use partial indexes
+Implement TTL indexes for temporary data
+Monitor index usage
+4. DevOps Guidelines
+A. Docker Configuration
+
+
+Resource Management
+Implement resource limits
+Use health checks
+Implement proper logging
+Add monitoring
+B. CI/CD Pipeline
+
+Quality Gates
+Unit test coverage > 80%
+Integration test coverage > 60%
+No critical security vulnerabilities
+Performance benchmarks met
+
+. Logging Strategy
+Structured Logging
+   // Example logging configuration
+   const logger = winston.createLogger({
+     level: 'info',
+     format: winston.format.combine(
+       winston.format.timestamp(),
+       winston.format.json()
+     ),
+     transports: [
+       new winston.transports.File({ filename: 'error.log', level: 'error' }),
+       new winston.transports.File({ filename: 'combined.log' })
+     ]
+   });
+
+   Metrics Collection
+Implement Prometheus metrics
+Add custom metrics for business logic
+Set up Grafana dashboards
+Implement alerting
+
+6. Security Guidelines
+A. Authentication & Authorization
+JWT Implementation
+   // Example JWT configuration
+   const jwtOptions = {
+     secret: process.env.JWT_SECRET,
+     expiresIn: '1h',
+     algorithm: 'HS256',
+     issuer: 'photo-op',
+     audience: 'photo-op-users'
+   };
+
+   API Security
+Implement rate limiting
+Add request validation
+Implement CORS properly
+Add security headers
+B. Data Protection
+Image Security
+Implement virus scanning
+Add file type validation
+Implement size limits
+Add watermarking
+Data Encryption
+Use HTTPS everywhere
+Implement field-level encryption
+Secure sensitive data
+Implement proper key management

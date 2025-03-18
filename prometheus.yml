@@ -1,0 +1,29 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'photo-op-api'
+    static_configs:
+      - targets: ['server:5000']
+    metrics_path: '/metrics'
+    scheme: 'http'
+    basic_auth:
+      username: ${PROMETHEUS_USERNAME:-admin}
+      password: ${PROMETHEUS_PASSWORD:-admin}
+
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai_service:5000']
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  - job_name: 'database-service'
+    static_configs:
+      - targets: ['database_service:5003']
+    metrics_path: '/metrics'
+    scheme: 'http'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090'] 
