@@ -4,7 +4,7 @@ import ImageDisplay from './ImageDisplay';
 import EmailCapture from './EmailCapture';
 import TransformationStyles from './TransformationStyles';
 import { Typography } from '@mui/material';
-import { ContentContainer } from './styled';
+import { ContentContainer } from './styled/index';
 import styled from 'styled-components';
 import CircularProgress from '@mui/material/CircularProgress';
 import { pollTransformationStatus } from '../api/transformations';
